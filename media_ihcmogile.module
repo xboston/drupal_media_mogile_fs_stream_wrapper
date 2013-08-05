@@ -1,0 +1,102 @@
+<?php
+
+/**
+ * @file
+ * Provides MogileFS stream wrapper from IHC.ru
+ */
+
+/**
+ * Implements hook_stream_wrappers().
+ *
+ * Create a stream wrapper for MogileFS
+ */
+function media_ihcmogile_stream_wrappers()
+{
+    return array(
+        'ihcmogile' => array(
+            'name'        => 'IHC MogileFS' ,
+            'class'       => 'MediaIhcMogileStreamWrapper' ,
+            'description' => t('MogileFS Simple Storage Service from IHC.ru') ,
+        ) ,
+    );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function media_ihcmogile_menu()
+{
+    $items = array();
+
+    $items['admin/config/media/ihcmogile'] = array(
+        'title'            => 'MogileFS Services wrapper from IHC.ru' ,
+        'description'      => 'Configure your MogileFS' ,
+        'page callback'    => 'drupal_get_form' ,
+        'page arguments'   => array( 'media_ihcmogile_admin' ) ,
+        'access arguments' => array( 'access administration pages' ) ,
+    );
+
+    return $items;
+}
+
+
+/**
+ * Implements hook_admin().
+ */
+function media_ihcmogile_admin()
+{
+    $form = array();
+
+    $form['media_ihcmogile_hosts']  = array(
+        '#type'          => 'textfield' ,
+        '#title'         => t('MogileFS hosts') ,
+        '#default_value' => variable_get('media_ihcmogile_hosts' , '') ,
+        '#required'      => true ,
+    );
+    $form['media_ihcmogile_port']   = array(
+        '#type'          => 'textfield' ,
+        '#title'         => t('MogileFS port') ,
+        '#default_value' => variable_get('media_ihcmogile_port' , '') ,
+        '#required'      => true ,
+    );
+    $form['media_ihcmogile_class']  = array(
+        '#type'          => 'textfield' ,
+        '#title'         => t('MogileFS class') ,
+        '#default_value' => variable_get('media_ihcmogile_class' , '') ,
+        '#required'      => true ,
+    );
+    $form['media_ihcmogile_domain'] = array(
+        '#type'          => 'textfield' ,
+        '#title'         => t('MogileFS domain') ,
+        '#default_value' => variable_get('media_ihcmogile_domain' , '') ,
+        '#required'      => true ,
+    );
+    $form['media_ihcmogile_output'] = array(
+        '#type'          => 'textfield' ,
+        '#title'         => t('MogileFS output url') ,
+        '#default_value' => variable_get('media_ihcmogile_output' , '') ,
+        '#required'      => true ,
+    );
+
+    return system_settings_form($form);
+}
+
+
+/**
+ * Implements hook_url_outbound_alter().
+ */
+function media_ihcmogile_url_outbound_alter(&$path , &$options , $original_path)
+{
+
+    //die("Что-то для формирования ссылок, суд по всему");
+
+    $style_path = variable_get('media_ihcmogile_output' , '');
+    // strip protocol
+    $path_no_protocol = str_replace(array( 'http://' , 'https://' ) , '' , $path);
+    if ( substr($path_no_protocol , 0 , strlen($style_path)) == $style_path ) {
+        $style_path_fragment = substr($path_no_protocol , strlen($style_path));
+        // deliver the image through the private file system
+        // also creates derivative on S3 at the same time
+        $path = url('system/files/styles/' . $style_path_fragment);
+    }
+}

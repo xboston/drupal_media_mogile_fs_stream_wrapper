@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Media: Amazon module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function media_mogileihc_uninstall() {
+  variable_del('media_ihcmogilefs_hosts');
+  variable_del('media_ihcmogilefs_port');
+  variable_del('media_ihcmogilefs_class');
+  variable_del('media_ihcmogilefs_domain');
+  variable_del('media_ihcmogilefs_output');
+}
