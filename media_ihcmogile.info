@@ -1,5 +1,5 @@
 ; $Id$
-name = Media IhcMogileFS
+name = Media IhcMogile
 description = Provides MogileFS stream wrapper class from IHC.ru
 package = Media
 core = 7.x

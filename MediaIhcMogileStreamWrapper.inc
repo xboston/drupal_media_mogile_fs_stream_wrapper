@@ -2,9 +2,11 @@
 
 /**
  * A PHP Stream Wrapper for MogileFS
- *  by Florian Anderiasch <fa at art-core dot org>
- *  inspired by media_amazon and hash_wrapper
+ * by Florian Anderiasch <fa at art-core dot org>
+ * inspired by media_amazon and hash_wrapper
+ * fixed by boston, специально для ihc.ru
  *
+ * ver. 0.0.1 w
  */
 
 class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
@@ -27,10 +29,10 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
             'streamTimeoutSeconds' => 5 ,
         ) ,
         'hosts'   => '127.0.0.1' ,
-        'domain'  => 'files.com' ,
-        'class'   => 'media' ,
-        'port'    => '6001' ,
-        'output'  => 'http://dl.example.com/' ,
+        'domain'  => 'test.mogile' ,
+        'class'   => 'class2' ,
+        'port'    => 7001 ,
+        'output'  => 'http://127.0.0.1/mogile' ,
 
     );
 
@@ -60,7 +62,7 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
         //error_log("uri is $uri" . PHP_EOL);
         $parts      = explode('/' , $uri);
         $base       = explode('\.' , array_pop($parts));
-        $this->_key = '/'.$base[0] . "";
+        $this->_key = '/' . $base[0] . "";
         //error_log("key is $this->_key " . PHP_EOL);
 
     }
@@ -68,11 +70,6 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
     public function getUri()
     {
         return $this->_uri;
-    }
-
-    protected function getTarget($uri = null)
-    {
-
     }
 
     protected function getLocalPath($uri = null)
@@ -112,16 +109,27 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
     //@TODO
     public function realpath()
     {
-        return sprintf('ihcmogilefs://%s' , $this->getLocalPath());
+        return sprintf('ihcmogile://%s' , $this->getLocalPath());
     }
+
 
     public function dirname($uri = null)
     {
-        return 'none';
+
+        list($stream , $target) = explode('://' , $uri , 2);
+        //$target = 1; //@TODO
+        $dirname = dirname($target);
+
+        if ( $dirname == '.' ) {
+            $dirname = '';
+        }
+
+        return $r = sprintf('%s://%s' , $stream , $dirname);
     }
 
     public function stream_open($uri , $mode , $options , &$opened_url)
     {
+
         $this->setUri($uri);
         if ( $this->_getMogileClient() ) {
             $this->_pos = 0;
@@ -133,8 +141,8 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
 
     public function stream_close()
     {
-
         $k = $this->_key;
+
         $this->_mog->put($this->_data , $k , $this->_m['class'] , false);
 
         $this->_pos    = 0;
@@ -145,20 +153,27 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
 
     public function stream_lock($operation)
     {
-        return lock_aquire('media_mogilefs:' . $this->_uri);
+
+        return lock_aquire('media_ihcmogile:' . $this->_uri);
     }
+
+    private $position;
 
     public function stream_read($count)
     {
-        if ( $this->_getMogileClient() ) {
-            error_log("reading $this->_pos $count" . PHP_EOL);
-            $data = substr($this->_getObject() , $this->_pos , $count);
-            $this->_pos += $count;
 
-            return $data;
+
+        if ( $this->_data===NULL && $this->_getMogileClient() ) {
+
+
+            $o = $this->_getObject();
+            $this->_data = file_get_contents($o['path1']);
         }
 
-        return false;
+        $p = $this->position;
+        $ret = substr($this->_data, $p, $count);
+        $this->position += strlen($ret);
+        return $ret;
     }
 
     public function stream_write($data)
@@ -176,7 +191,8 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
 
     public function stream_eof()
     {
-        if ( $this->_getMogileClient() && $tmp = $this->_getObject() ) {
+
+        if ( $this->_getMogileClient() && $tmp = $this->_data ) {
             return $this->_pos >= strlen($tmp);
         }
 
@@ -284,7 +300,7 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
     {
         if ( !$this->_object ) {
             try {
-                $this->_object = $this->_mog->getFileData($this->_key);
+                $this->_object = $this->_mog->get($this->_key);
             } catch ( Exception $e ) {
                 return null;
             }
@@ -327,7 +343,7 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
     {
 
         if ( $uri == null ) {
-            $uri = $this->uri;
+            $uri = $this->_uri;
         }
 
         $path = $this->getLocalPath($uri);
@@ -336,16 +352,8 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
 
         //echo "\n" . $path . '::' . $uri . "\n";
 
-        try {
 
-            $r = $this->_mog->fileInfo('/' . $path);
-        } catch ( Exception $e ) {
-
-            $r = false;
-        }
-
-
-        if ( true) {
+        if ( true ) {
 
             //die("есть файло");
 
@@ -381,18 +389,33 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
             );
 
             // check if directory
-            if ( !is_array($r) ) {
+            if ( $this->_is_dir($uri) ) {
+
                 $stat['mode'] = 0040000; // S_IFDIR indicating directory
                 $stat['mode'] |= 0777;
                 $stat['2'] = $stat['mode'];
 
-                //echo "каталог" . $uri."\n";
+                //echo "каталог" . $uri."\n"; die;
 
                 return $stat;
+
             } else {
 
                 //print_r($r);
-                //echo "файл" . $uri."\n";
+                //echo "файл" . $uri . "\n";die;
+
+                $path = basename($uri);
+
+                try {
+
+                    $r = $this->_mog->fileInfo('/' . $path);
+
+                } catch ( Exception $e ) {
+                    //echo 'key:'.'/' . $path."\n";
+                    //echo $e->getMessage();
+                    //$r = false;
+                    return false;
+                }
 
                 $stat['size']  = $r['length'];
                 $stat['mtime'] = time();
@@ -409,12 +432,9 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
         if ( $uri == null ) {
             $uri = $this->uri;
         }
-        $path = $this->getLocalPath($uri);
 
-        //die($path);
+        return strpos('.' , $uri);
 
-        return false;
     }
-
 
 }
