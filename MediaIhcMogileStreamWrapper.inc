@@ -6,7 +6,7 @@
  * inspired by media_amazon and hash_wrapper
  * fixed by boston, специально для ihc.ru
  *
- * ver. 0.0.1 w
+ * ver. 0.2.0 w
  */
 
 class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
@@ -59,12 +59,9 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
     public function setUri($uri)
     {
         $this->_uri = $uri;
-        //error_log("uri is $uri" . PHP_EOL);
         $parts      = explode('/' , $uri);
         $base       = explode('\.' , array_pop($parts));
         $this->_key = '/' . $base[0] . "";
-        //error_log("key is $this->_key " . PHP_EOL);
-
     }
 
     public function getUri()
@@ -91,13 +88,8 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
         return sprintf('%s%s' , $this->_m['output'] , $this->_key);
     }
 
-    //@TODO
     public static function getMimeType($uri , $mapping = null)
     {
-        if ( !isset($mapping) ) {
-            $mapping = 0;
-        }
-
         return false;
     }
 
@@ -106,21 +98,20 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
         return true;
     }
 
-    //@TODO
     public function realpath()
     {
         return sprintf('ihcmogile://%s' , $this->getLocalPath());
     }
 
-
     public function dirname($uri = null)
     {
 
         list($stream , $target) = explode('://' , $uri , 2);
-        //$target = 1; //@TODO
+
         $dirname = dirname($target);
 
         if ( $dirname == '.' ) {
+
             $dirname = '';
         }
 
@@ -132,8 +123,8 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
 
         $this->setUri($uri);
         if ( $this->_getMogileClient() ) {
+
             $this->_pos = 0;
-            error_log("opened $uri" . PHP_EOL);
 
             return true;
         }
@@ -153,7 +144,6 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
 
     public function stream_lock($operation)
     {
-
         return lock_aquire('media_ihcmogile:' . $this->_uri);
     }
 
@@ -162,23 +152,22 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
     public function stream_read($count)
     {
 
+        if ( $this->_data === null && $this->_getMogileClient() ) {
 
-        if ( $this->_data===NULL && $this->_getMogileClient() ) {
-
-
-            $o = $this->_getObject();
+            $o           = $this->_getObject();
             $this->_data = file_get_contents($o['path1']);
         }
 
-        $p = $this->position;
-        $ret = substr($this->_data, $p, $count);
+        $p   = $this->position;
+        $ret = substr($this->_data , $p , $count);
         $this->position += strlen($ret);
+
         return $ret;
     }
 
     public function stream_write($data)
     {
-        //@TODO
+
         if ( $this->_getMogileClient() && strlen($data) > 0 ) {
 
             $this->_data .= $data;
@@ -346,85 +335,65 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
             $uri = $this->_uri;
         }
 
-        $path = $this->getLocalPath($uri);
-
         $this->_getMogileClient();
 
-        //echo "\n" . $path . '::' . $uri . "\n";
+        $mode = 0100000; // S_IFREG indicating file
+        $mode |= 0777; // everything is writeable
+        $stat = array(
+            '0'       => 0 ,
+            '1'       => 0 ,
+            '2'       => $mode ,
+            '3'       => 0 ,
+            '4'       => 0 ,
+            '5'       => 0 ,
+            '6'       => 0 ,
+            '7'       => 0 ,
+            '8'       => 0 ,
+            '9'       => 0 ,
+            '10'      => 0 ,
+            '11'      => 0 ,
+            '12'      => 0 ,
+            'dev'     => 0 ,
+            'ino'     => 0 ,
+            'mode'    => $mode ,
+            'nlink'   => 0 ,
+            'uid'     => 0 ,
+            'gid'     => 0 ,
+            'rdev'    => 0 ,
+            'size'    => 0 ,
+            'atime'   => 0 ,
+            'mtime'   => 0 ,
+            'ctime'   => 0 ,
+            'blksize' => 0 ,
+            'blocks'  => 0 ,
+        );
 
+        if ( $this->_is_dir($uri) ) {
 
-        if ( true ) {
+            $stat['mode'] = 0040000; // S_IFDIR indicating directory
+            $stat['mode'] |= 0777;
+            $stat['2'] = $stat['mode'];
 
-            //die("есть файло");
+            return $stat;
 
-            $mode = 0100000; // S_IFREG indicating file
-            $mode |= 0777; // everything is writeable
-            $stat = array(
-                '0'       => 0 ,
-                '1'       => 0 ,
-                '2'       => $mode ,
-                '3'       => 0 ,
-                '4'       => 0 ,
-                '5'       => 0 ,
-                '6'       => 0 ,
-                '7'       => 0 ,
-                '8'       => 0 ,
-                '9'       => 0 ,
-                '10'      => 0 ,
-                '11'      => 0 ,
-                '12'      => 0 ,
-                'dev'     => 0 ,
-                'ino'     => 0 ,
-                'mode'    => $mode ,
-                'nlink'   => 0 ,
-                'uid'     => 0 ,
-                'gid'     => 0 ,
-                'rdev'    => 0 ,
-                'size'    => 0 ,
-                'atime'   => 0 ,
-                'mtime'   => 0 ,
-                'ctime'   => 0 ,
-                'blksize' => 0 ,
-                'blocks'  => 0 ,
-            );
+        } else {
 
-            // check if directory
-            if ( $this->_is_dir($uri) ) {
+            $path = basename($uri);
 
-                $stat['mode'] = 0040000; // S_IFDIR indicating directory
-                $stat['mode'] |= 0777;
-                $stat['2'] = $stat['mode'];
+            try {
 
-                //echo "каталог" . $uri."\n"; die;
+                $r = $this->_mog->fileInfo('/' . $path);
+            } catch ( Exception $e ) {
 
-                return $stat;
-
-            } else {
-
-                //print_r($r);
-                //echo "файл" . $uri . "\n";die;
-
-                $path = basename($uri);
-
-                try {
-
-                    $r = $this->_mog->fileInfo('/' . $path);
-
-                } catch ( Exception $e ) {
-                    //echo 'key:'.'/' . $path."\n";
-                    //echo $e->getMessage();
-                    //$r = false;
-                    return false;
-                }
-
-                $stat['size']  = $r['length'];
-                $stat['mtime'] = time();
-
-                return $stat;
+                return false;
             }
+
+            $stat['size']  = $r['length'];
+            $stat['mtime'] = time();
+
+            return $stat;
         }
 
-        return false;
     }
 
     public function _is_dir($uri = null)
@@ -434,7 +403,5 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
         }
 
         return strpos('.' , $uri);
-
     }
-
 }

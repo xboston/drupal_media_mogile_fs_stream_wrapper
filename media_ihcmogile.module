@@ -88,9 +88,13 @@ function media_ihcmogile_admin()
 function media_ihcmogile_url_outbound_alter(&$path , &$options , $original_path)
 {
 
-    //die("Что-то для формирования ссылок, суд по всему");
+    $style_path = variable_get('media_ihcmogile_output' , false);
 
-    $style_path = variable_get('media_ihcmogile_output' , '');
+    if(!$style_path){
+
+        return $path;
+    }
+
     // strip protocol
     $path_no_protocol = str_replace(array( 'http://' , 'https://' ) , '' , $path);
     if ( substr($path_no_protocol , 0 , strlen($style_path)) == $style_path ) {
