@@ -28,13 +28,13 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
             'socketTimeout'        => 5 ,
             'streamTimeoutSeconds' => 5 ,
         ) ,
-        /*
-        'hosts'   => '127.0.0.1' ,
-        'domain'  => 'test.mogile' ,
-        'class'   => 'class2' ,
-        'port'    => 7001 ,
-        'output'  => 'http://127.0.0.1/mogile' ,
-        */
+        /**
+         * 'hosts'   => '127.0.0.1' ,
+         * 'domain'  => 'test.mogile' ,
+         * 'class'   => 'class2' ,
+         * 'port'    => 7001 ,
+         * 'output'  => 'http://127.0.0.1/mogile' ,
+         */
     );
 
     public function __construct()
@@ -271,8 +271,10 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
         if ( is_null($this->_mog) ) {
             try {
 
+                $stream = new self;
+
                 $this->_mog = new MogileFs();
-                $this->_mog->connect($this->_m['hosts'] , $this->_m['port'] , $this->_m['domain']);
+                $this->_mog->connect($stream->_m['hosts'] , $stream->_m['port'] , $stream->_m['domain']);
 
             } catch ( RequestCore_Exception $e ) {
 
