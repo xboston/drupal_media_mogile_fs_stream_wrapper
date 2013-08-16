@@ -28,12 +28,13 @@ class MediaIhcMogileStreamWrapper implements DrupalStreamWrapperInterface
             'socketTimeout'        => 5 ,
             'streamTimeoutSeconds' => 5 ,
         ) ,
+        /*
         'hosts'   => '127.0.0.1' ,
         'domain'  => 'test.mogile' ,
         'class'   => 'class2' ,
         'port'    => 7001 ,
         'output'  => 'http://127.0.0.1/mogile' ,
-
+        */
     );
 
     public function __construct()
